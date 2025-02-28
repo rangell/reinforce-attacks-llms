@@ -1,0 +1,78 @@
+seml:
+  executable: run_gcg.py
+  output_dir: seml_output
+  project_root_dir: ..
+  description: GCG reinforce
+  conda_environment: <enter-your-conda-env>
+
+slurm:
+  experiments_per_job: 1
+  sbatch_options:
+    nodes: 1
+    gpus-per-node: 1
+    cpus-per-task: 4  # num cores
+    time: 0-06:00     # max time, D-HH:MM
+    partition: ['gpu_h100']
+
+fixed:
+  attack:
+    target_model:
+      model_name_or_path: meta-llama/Llama-2-7b-chat-hf
+      chat_template: llama-2
+      dtype: "bfloat16"
+      num_gpus: 1
+    warmup_num_steps: 1_000_000
+    warmup_end_ce: None
+    gen_additional_judge_lengths: None
+    bsln_temperature_complete: None
+    search_target_metric: None
+    early_stopping_key: None
+
+grid:
+  data.index:
+    type: choice
+    # python -c "print(str(list(range(200))).replace(' ', ''))"
+    options: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199]
+
+llama2:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Llama-2-7b-chat-hf
+        chat_template: llama-2
+
+llama3:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+
+vicuna:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: lmsys/vicuna-7b-v1.5
+        chat_template: vicuna
+
+gemma_2b:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: google/gemma-1.1-2b-it
+        chat_template: gemma
+
+gemma_7b:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: google/gemma-1.1-7b-it
+        chat_template: gemma
+
+gray_swan_llama_3_rr:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: GraySwanAI/Llama-3-8B-Instruct-RR
+        chat_template: llama-3
+

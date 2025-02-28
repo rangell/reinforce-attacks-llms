@@ -1,0 +1,46 @@
+seml:
+  executable: run_pgd.py
+  output_dir: seml_output
+  project_root_dir: ..
+  description: PGD reinforce
+  conda_environment: <enter-your-conda-env>
+
+slurm:
+  experiments_per_job: 1
+  sbatch_options:
+    nodes: 1
+    gpus-per-node: 1
+    cpus-per-task: 4  # num cores
+    time: 2-00:00     # max time, D-HH:MM
+    partition: ['gpu_h100']
+
+fixed:
+  attack:
+    target_model:
+      model_name_or_path: meta-llama/Llama-2-7b-chat-hf
+      chat_template: llama-2
+      dtype: "bfloat16"
+      num_gpus: 1
+    eval_best: True
+
+grid:
+  data.indices:
+    type: choice
+    options: 
+      - [126,104,99,92,111,167,116,96,52,69,164,124,182,154,125,196,194]
+      - [177,163,31,11,73,15,41,97,128,133,82,139,123,83,65,151,162]
+      - [170,77,32,173,174,85,168,112,171,181,7,46,75,28,29,195]
+
+llama3:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+
+gemma_2b:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: google/gemma-1.1-2b-it
+        chat_template: gemma

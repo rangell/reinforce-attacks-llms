@@ -1,0 +1,79 @@
+seml:
+  executable: run_gcg.py
+  output_dir: seml_output
+  project_root_dir: ..
+  description: GCG reinforce
+  conda_environment: <enter-your-conda-env>
+
+slurm:
+  experiments_per_job: 1
+  sbatch_options:
+    nodes: 1
+    gpus-per-node: 1
+    cpus-per-task: 4  # num cores
+    time: 0-06:00     # max time, D-HH:MM
+    partition: ['gpu_h100']
+
+fixed:
+  attack:
+    target_model:
+      model_name_or_path: meta-llama/Llama-2-7b-chat-hf
+      chat_template: llama-2
+      dtype: "bfloat16"
+      num_gpus: 1
+
+grid:
+  data.index:
+    type: choice
+    # python -c "import numpy as np; np.random.seed(100); print(','.join(map(str, np.random.choice(np.arange(200),50,replace=False))))"
+    options: [126,104,99,92,111,167,116,96,52,69,164,124,182,154,125,196,194,177,163,31,11,73,15,41,97,128,133,82,139,123,83,65,151,162,170,77,32,173,174,85,168,112,171,181,7,46,75,28,29,195]
+
+llama3_uniform_weighting:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+      token_position_weighting_kwargs:
+        name: uniform
+
+llama3_no_exploit:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+      search_greedy_reward_exploit_threshold: 2
+
+llama3_no_greedy:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+      gen_temperatures: [0.7]
+      search_target_metric: None
+      early_stopping_key: None
+
+llama3_no_greedy_no_harm:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+      gen_temperatures: [0.7]
+      include_most_harmful: False
+      search_target_metric: None
+      early_stopping_key: None
+
+llama3_no_greedy_no_harm_no_complete:
+  fixed:
+    attack:
+      target_model:
+        model_name_or_path: meta-llama/Meta-Llama-3-8B-Instruct
+        chat_template: llama-3
+      gen_temperatures: [0.7]
+      include_most_harmful: False
+      bsln_temperature_complete: None
+      search_target_metric: None
+      early_stopping_key: None
