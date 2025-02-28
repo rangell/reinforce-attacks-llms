@@ -156,9 +156,7 @@ and
 
 </p>
 
-<div align="center">
-
-** A fast, scalable, and open-source framework for evaluating automated red teaming methods and LLM attacks/defenses**
+**A fast, scalable, and open-source framework for evaluating automated red teaming methods and LLM attacks/defenses**
 
 ### 🗡️ What is HarmBench 🛡️
 
