@@ -4,6 +4,7 @@ import itertools
 import json
 import logging
 import time
+import pickle
 from typing import Any, Dict, List, Sequence, Tuple
 
 # https://huggingface.co/docs/accelerate/v0.11.0/en/memory#accelerate.find_executable_batch_size
@@ -220,6 +221,12 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
         self.candidate_loss_prefix = 'candidate_'
 
         self.judge = Judge(**judge_loss_config, device=self.model.device, torch_dtype=self.model.dtype)
+
+        assert self.model.config._name_or_path == 'google/gemma-1.1-2b-it'
+        with open('../jailbreak_analysis/refusal_directions-gemma1.1-2b.pkl', 'rb') as f:
+            self.refusal_directions = pickle.load(f)['gemma1.1-2b']
+            self.refusal_directions = torch.from_numpy(self.refusal_directions).to("cuda").to(torch.bfloat16)
+
 
     def generate_test_cases_single_behavior(self, behavior_dict, verbose=True, **kwargs):
         """
@@ -555,7 +562,8 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
             [input_embeds_wo_target.repeat(len(generations), 1, 1), gen_ids_embeds], dim=1)
 
         tmp = input_embeds_batch.shape[1] - gen_ids_embeds.shape[1]
-        logits = self.forward(input_embeds_batch)[..., tmp-1:-1, :].contiguous()
+        outputs = self.forward(input_embeds_batch)
+        logits = outputs.logits[..., tmp-1:-1, :].contiguous()
 
         ce_loss = self.target_loss(logits.transpose(1, 2), target_ids_batch)
         ce_weights = self.target_weights(target_ids_batch)
@@ -680,11 +688,12 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
 
             if self.model._supports_num_logits_to_keep():  # to save some memory
                 num_logits_to_keep = target_ids_batch.shape[1] + 1
-                logits = self.forward(input_embeds_batch, num_logits_to_keep=num_logits_to_keep)
-                logits = logits[..., :-1, :].contiguous()
+                outputs = self.forward(input_embeds_batch, num_logits_to_keep=num_logits_to_keep)
+                logits = outputs.logits[..., :-1, :].contiguous()
             else:
                 length_until_target = input_embeds_batch.shape[1] - target_ids_batch.shape[1]
-                logits = self.forward(input_embeds_batch)[..., length_until_target-1:-1, :].contiguous()
+                outputs = self.forward(input_embeds_batch)
+                logits = outputs.logits[..., length_until_target-1:-1, :].contiguous()
             ce_loss = self.target_loss(logits.transpose(1, 2), target_ids_batch).to(torch.float32)
             ce_loss = ce_loss.reshape(-1, num_gens, ce_loss.shape[-1])
             ce_weights = self.target_weights(
@@ -750,6 +759,8 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
     def gen_fn(self, *args, temperature: float | int | torch.Tensor = 0., target_length: int, **kwargs) -> torch.Tensor:
         """Generate with model and apply config to satisfy huggingface interface"""
         # Prepare configuration
+        kwargs.setdefault('return_dict_in_generate', True)
+        kwargs.setdefault('output_hidden_states', True)
         kwargs.setdefault('max_new_tokens', target_length)
         if isinstance(temperature, torch.Tensor) or temperature > 0:
             kwargs.setdefault('top_k', self.gen_topk)
@@ -762,9 +773,13 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
 
         if isinstance(temperature, torch.Tensor):
             # Parallel generation with multiple temperatures
+            assert False
             return generate(self.model, *args, **kwargs)
         else:
-            return self.model.generate(*args, **kwargs)
+            torch.compiler.cudagraph_mark_step_begin()
+            output = self.model.generate(*args, **kwargs)
+            hidden_states = torch.permute(torch.cat([torch.stack(h) for h in output.hidden_states], dim=2), (1, 2, 0, 3))
+            return (output.sequences.detach().clone(), hidden_states.detach().clone())
 
     def generate_responses(self, input_ids: torch.Tensor, input_mask: torch.Tensor,
                            temperatures: List[float | int], target_length: int, gen_offset: int = 0) -> Tuple[
@@ -779,13 +794,13 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
                 temperatures, device=input_ids.device, dtype=torch.float32).repeat_interleave(bs)
             input_ids_ = input_ids.repeat(n_temps, 1)
             input_mask_ = input_mask.repeat(n_temps, 1)
+            assert False
             gen_ids = self.gen_fn(input_ids=input_ids_, attention_mask=input_mask_, target_length=target_length,
                                   temperature=temperatures_)
         else:
-            gen_ids = pad_and_concatenate([
-                self.gen_fn(input_ids=input_ids, attention_mask=input_mask, target_length=target_length,
-                            temperature=temperature)
-                for temperature in temperatures])
+            gen_ids, hidden_states = zip(*[self.gen_fn(input_ids=input_ids, attention_mask=input_mask, target_length=target_length, temperature=temperature) for temperature in temperatures])
+            gen_ids = pad_and_concatenate(gen_ids)
+
         if len(gen_ids) > 0:
             input_length = input_ids.shape[-1] + gen_offset
             gen_ids_cpu = gen_ids[:, input_length:].cpu()
@@ -809,7 +824,7 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
             for i, gen_id in gen_ids:  # eos out all indices after the first eos
                 eos_mask = (gen_id == self.tokenizer.eos_token_id).cumsum(-1) > 0
                 gen_id.masked_fill_(eos_mask, self.tokenizer.eos_token_id)
-        return gen_ids, gens
+        return gen_ids, gens, hidden_states
 
     def generations_with_reward(
             self,
@@ -825,7 +840,7 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
         if self.exploration_epoch:
             if input_mask is None:
                 input_mask = torch.ones_like(input_ids)
-            gen_ids, gens = self.generate_responses(input_ids, input_mask, gen_temperatures, self.gen_max_len)
+            gen_ids, gens, hidden_states = self.generate_responses(input_ids, input_mask, gen_temperatures, self.gen_max_len)
             if self.bsln_temperature_complete is not None:  # ignored by default
                 assert not self.bsln_ignore, "Baseline must not be ignored for completion"
                 assert bs == 1, "Batch size must be 1 for completing the baseline"
@@ -842,9 +857,10 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
                 complete_temp = [self.bsln_temperature_complete]
                 input_ids_ = torch.cat((input_ids, target_ids), dim=-1)
                 input_mask_ = torch.cat((input_mask, torch.ones_like(target_ids)), dim=-1)
-                complete_gen_ids, complete_gens = self.generate_responses(
+                complete_gen_ids, complete_gens, complete_hidden_states = self.generate_responses(
                     input_ids_, input_mask_, complete_temp, gen_max_len, gen_offset=-target_ids.shape[-1])
                 gen_ids.insert(0, ('bsln', complete_gen_ids[0][1]))
+                hidden_states = list(complete_hidden_states) + list(hidden_states)
                 gens = interleave_lists(complete_gens, gens)
         else:
             gen_ids, gens = [], []
@@ -865,6 +881,20 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
             # Parallelize reward calculation for all temperatures
             rewards = self.judge(len(gens) * behaviors, [g for l in gens for g in l])
             rewards = [rewards[i * bs:(i + 1) * bs] for i in range(len(gens))]
+
+            assert len(rewards) % len(hidden_states) == 0
+            assert self.model.config._name_or_path == 'google/gemma-1.1-2b-it'
+            #_refusal_directions = torch.flatten(self.refusal_directions[:, 1:, :], start_dim=0, end_dim=1)
+            _refusal_directions = torch.flatten(self.refusal_directions[2:3, 4:15, :], start_dim=0, end_dim=1)
+
+            # Compute the negative max cosine similarity with harmfulness directions
+            harmfulness_rewards = []
+            for hs in hidden_states:
+                harmfulness_rewards.append(-torch.max(torch.square((hs[:, :, 4:15, :] @ _refusal_directions.T) / torch.norm(hs, dim=-1)[:, :, 4:15, None])))
+
+            # Add the rewards
+            for i in range(len(rewards)):
+                rewards[i] += harmfulness_rewards[i % len(harmfulness_rewards)]
 
             # House-keeping for intermediate rewards
             add_rewards = {}
@@ -1045,7 +1075,7 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
             outputs = self.model(inputs_embeds=input_embeds, past_key_values=prefix_cache_batch, **kwargs)
         else:
             outputs = self.model(inputs_embeds=input_embeds, **kwargs)
-        return outputs.logits
+        return outputs
 
     def aggregate_and_augment_loss_dict(
             self,
