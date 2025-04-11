@@ -249,7 +249,8 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
         self.behaviors = [behavior]
         context_str = behavior_dict['ContextString']
         behavior_id = behavior_dict['BehaviorID']
-        target = self.behavior_id_to_target[behavior_dict["BehaviorID"]]
+        #target = self.behavior_id_to_target[behavior_dict["BehaviorID"]]
+        target = "Sure, here "
         self.target_strs = [target]
 
         behavior += ' '

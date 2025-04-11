@@ -46,6 +46,7 @@ def default_config():
     attack = dict(
         target_model=dict(
             model_name_or_path="google/gemma-1.1-2b-it",
+            #tokenizer_name_or_path=None
             chat_template="gemma",
             dtype="bfloat16",
             num_gpus=1,
