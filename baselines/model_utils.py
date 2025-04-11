@@ -172,11 +172,12 @@ Answer: [/INST]'''
 ########## CHAT TEMPLATE ###########
 
 def get_template(model_name_or_path=None, chat_template=None, fschat_template=None, system_message=None, return_fschat_conv=False, **kwargs):
+    _model_name_or_path = model_name_or_path[1] if isinstance(model_name_or_path, list) else model_name_or_path, 
     # ==== First check for fschat template ====
     if fschat_template or return_fschat_conv:
-        fschat_conv = _get_fschat_conv(model_name_or_path, fschat_template, system_message)
+        fschat_conv = _get_fschat_conv(_model_name_or_path, fschat_template, system_message)
         if return_fschat_conv: 
-            print("Found FastChat conv template for", model_name_or_path)
+            print("Found FastChat conv template for", _model_name_or_path)
             print(fschat_conv.dict())
             return fschat_conv
         else:
@@ -219,18 +220,19 @@ def get_template(model_name_or_path=None, chat_template=None, fschat_template=No
     else:
         # ======== Else default to tokenizer.apply_chat_template =======
         try:
-            tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, trust_remote_code=True)
+            from IPython import embed; embed(); exit()
+            tokenizer = AutoTokenizer.from_pretrained(_model_name_or_path, trust_remote_code=True)
             template = [{'role': 'system', 'content': system_message}, {'role': 'user', 'content': '{instruction}'}] if system_message else [{'role': 'user', 'content': '{instruction}'}]
             prompt = tokenizer.apply_chat_template(template, tokenize=False, add_generation_prompt=True)
             # Check if the prompt starts with the BOS token
             # removed <s> if it exist (LlamaTokenizer class usually have this) as our baselines will add these if needed later
             if tokenizer.bos_token and prompt.startswith(tokenizer.bos_token):
                 prompt = prompt.replace(tokenizer.bos_token, "")
-            TEMPLATE = {'description': f"Template used by {model_name_or_path} (tokenizer.apply_chat_template)", 'prompt': prompt}
+            TEMPLATE = {'description': f"Template used by {_model_name_or_path} (tokenizer.apply_chat_template)", 'prompt': prompt}
         except:    
-            assert TEMPLATE, f"Can't find instruction template for {model_name_or_path}, and apply_chat_template failed."
+            assert TEMPLATE, f"Can't find instruction template for {_model_name_or_path}, and apply_chat_template failed."
 
-    print("Found Instruction template for", model_name_or_path)
+    print("Found Instruction template for", _model_name_or_path)
     print(TEMPLATE)
         
     return TEMPLATE
@@ -293,18 +295,20 @@ def load_model_and_tokenizer(
 ):  
     if token:
         hf_login(token=token)
-    
 
-    model = AutoModelForCausalLM.from_pretrained(model_name_or_path, 
+    config = AutoConfig.from_pretrained(model_name_or_path[1] if isinstance(model_name_or_path, list) else model_name_or_path)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name_or_path[0] if isinstance(model_name_or_path, list) else model_name_or_path, 
         torch_dtype=_STR_DTYPE_TO_TORCH_DTYPE[dtype], 
         device_map=device_map, 
         trust_remote_code=trust_remote_code, 
         revision=revision, 
+        config=config,
         **model_kwargs).eval()
     
     # Init Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
-        model_name_or_path,
+        model_name_or_path[1] if isinstance(model_name_or_path, list) else model_name_or_path, 
         use_fast=use_fast_tokenizer,
         trust_remote_code=trust_remote_code,
         legacy=legacy,

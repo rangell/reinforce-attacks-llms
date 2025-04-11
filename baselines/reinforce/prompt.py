@@ -192,13 +192,14 @@ Answer: [/INST]'''
 def get_template(
         model_name_or_path=None, chat_template=None, fschat_template=None, system_message=None,
         return_fschat_conv=False, **kwargs):
+    _model_name_or_path = model_name_or_path[1] if isinstance(model_name_or_path, list) else model_name_or_path 
     # ==== First check for fschat template ====
     if fschat_template or return_fschat_conv:
         fschat_conv = _get_fschat_conv(
-            model_name_or_path, fschat_template, system_message)
+            _model_name_or_path, fschat_template, system_message)
         if return_fschat_conv:
             logging.info("Found FastChat conv template for",
-                         model_name_or_path)
+                         _model_name_or_path)
             logging.info(fschat_conv.dict())
             return fschat_conv
         else:
@@ -248,7 +249,7 @@ def get_template(
         # ======== Else default to tokenizer.apply_chat_template =======
         try:
             tokenizer = AutoTokenizer.from_pretrained(
-                model_name_or_path, trust_remote_code=True)
+                _model_name_or_path, trust_remote_code=True)
             template = [{'role': 'system', 'content': system_message}, {
                 'role': 'user', 'content': '{instruction}'}] if system_message else [{'role': 'user', 'content': '{instruction}'}]
             prompt = tokenizer.apply_chat_template(
@@ -258,11 +259,11 @@ def get_template(
             if tokenizer.bos_token and prompt.startswith(tokenizer.bos_token):
                 prompt = prompt.replace(tokenizer.bos_token, "")
             TEMPLATE = {
-                'description': f"Template used by {model_name_or_path} (tokenizer.apply_chat_template)", 'prompt': prompt}
+                'description': f"Template used by {_model_name_or_path} (tokenizer.apply_chat_template)", 'prompt': prompt}
         except:
-            assert TEMPLATE, f"Can't find instruction template for {model_name_or_path}, and apply_chat_template failed."
+            assert TEMPLATE, f"Can't find instruction template for {_model_name_or_path}, and apply_chat_template failed."
 
-    logging.info(f"Found Instruction template for {model_name_or_path}")
+    logging.info(f"Found Instruction template for {_model_name_or_path}")
     logging.info(TEMPLATE)
 
     return TEMPLATE

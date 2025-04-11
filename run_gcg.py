@@ -171,7 +171,14 @@ def run(_config):
     # ========== save results ========== #
     experiment_id = 'default' if _config['db_collection'] is None else _config['db_collection']
     run_id = 'default' if _config['overwrite'] is None else _config['overwrite']
-    out_dir = os.path.join(_config["evaluation"]["out_dir"], experiment_id)
+
+    model_name_or_path = _config["attack"]["target_model"]["model_name_or_path"]
+    if isinstance(model_name_or_path, list):
+        target_model_id = "---".join(model_name_or_path).replace("/", "--")[2:]
+    else:
+        target_model_id = model_name_or_path.replace("/", "--")
+
+    out_dir = os.path.join(_config["evaluation"]["out_dir"], experiment_id, target_model_id)
     os.makedirs(out_dir, exist_ok=True)
     file_path = os.path.join(out_dir, f"traces_{run_id}")
 
