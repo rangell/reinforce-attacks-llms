@@ -172,7 +172,7 @@ Answer: [/INST]'''
 ########## CHAT TEMPLATE ###########
 
 def get_template(model_name_or_path=None, chat_template=None, fschat_template=None, system_message=None, return_fschat_conv=False, **kwargs):
-    _model_name_or_path = model_name_or_path[1] if isinstance(model_name_or_path, list) else model_name_or_path, 
+    _model_name_or_path = model_name_or_path[1] if isinstance(model_name_or_path, list) else model_name_or_path
     # ==== First check for fschat template ====
     if fschat_template or return_fschat_conv:
         fschat_conv = _get_fschat_conv(_model_name_or_path, fschat_template, system_message)
@@ -220,7 +220,6 @@ def get_template(model_name_or_path=None, chat_template=None, fschat_template=No
     else:
         # ======== Else default to tokenizer.apply_chat_template =======
         try:
-            from IPython import embed; embed(); exit()
             tokenizer = AutoTokenizer.from_pretrained(_model_name_or_path, trust_remote_code=True)
             template = [{'role': 'system', 'content': system_message}, {'role': 'user', 'content': '{instruction}'}] if system_message else [{'role': 'user', 'content': '{instruction}'}]
             prompt = tokenizer.apply_chat_template(template, tokenize=False, add_generation_prompt=True)

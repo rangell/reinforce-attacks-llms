@@ -16,6 +16,7 @@ from experiment import experiment, wandb_initialize, manual_seed
 # Configure the logging format
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(name)s - %(message)s', level=logging.INFO)
 
+# Example usage: python run_gcg.py with overwrite=2 data.behaviors_path="data/behavior_datasets/strong_reject_behaviors.csv" data.index=2 attack.num_steps=10 attack.target_model.model_name_or_path='("/scratch/jb9146/git/stanford_alpaca/outputs/distillations/outputs_llama-3.2-3B_from_qwen_2.5-7b/checkpoint-40", "meta-llama/Llama-3.2-3B-Instruct")'
 
 @experiment.config
 def default_config():
@@ -169,7 +170,8 @@ def run(_config):
             })
 
     # ========== save results ========== #
-    experiment_id = 'default' if _config['db_collection'] is None else _config['db_collection']
+    #experiment_id = 'default' if _config['db_collection'] is None else _config['db_collection']
+    experiment_id = "reinforce-gcg"
     run_id = 'default' if _config['overwrite'] is None else _config['overwrite']
 
     model_name_or_path = _config["attack"]["target_model"]["model_name_or_path"]

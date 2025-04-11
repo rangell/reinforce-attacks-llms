@@ -154,10 +154,12 @@ class PGDMultiPromptAttack(PGDLoss, RedTeamingMethod):
 
         self.model = model.eval()
         self.model.requires_grad_(False)
-        self.model.generation_config.cache_implementation = "static"  # Compile for generation
-        logging.warning(f"WARNING: setting model.generation_config.cache_implementation=static")
-        self.model.generation_config.compile_config.fullgraph = False  # Otherwise compile throws error for some models
-        logging.warning(f"WARNING: setting model.generation_config.compile_config.fullgraph=False")
+
+        if self.use_prefix_cache:
+            self.model.generation_config.cache_implementation = "static"  # Compile for generation
+            logging.warning(f"WARNING: setting model.generation_config.cache_implementation=static")
+            self.model.generation_config.compile_config.fullgraph = False  # Otherwise compile throws error for some models
+            logging.warning(f"WARNING: setting model.generation_config.compile_config.fullgraph=False")
 
         self.prompt_kwargs = {}
 

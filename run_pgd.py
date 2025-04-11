@@ -141,7 +141,9 @@ def run(_config):
                     for length, (reward, _) in eval_test_case_scores.items()]
     logging.info(f'Eval Rewards: {", ".join(eval_rewards)}')
     logging.info(
-        f'Eval Success: {", ".join([f'{succ} @ {length}' for length, (_, succ) in eval_test_case_scores.items()])}')
+        f"Eval Success: {', '.join([f'{succ} @ {length}' for length, (_, succ) in eval_test_case_scores.items()])}")
+
+    logging.info(f'Eval Success: {", ".join([f'{succ} @ {length}' for length, (_, succ) in eval_test_case_scores.items()])}')
     if wandb.run is not None:
         wandb.log({f'final_eval_reward_{k}': v.mean() for k, (v, _) in eval_test_case_scores.items()} |
                   {f'eval_success_{k}': sum([s.lower() == 'yes' for s in succs])
@@ -165,9 +167,16 @@ def run(_config):
                    for k, (_, succs) in test_case_scores.items()})
 
     # ========== save results ========== #
-    experiment_id = 'default' if _config['db_collection'] is None else _config['db_collection']
+    #experiment_id = 'default' if _config['db_collection'] is None else _config['db_collection']
+    experiment_id = "reinforce-pgd"
     run_id = 'default' if _config['overwrite'] is None else _config['overwrite']
-    out_dir = os.path.join(_config["evaluation"]["out_dir"], experiment_id)
+    model_name_or_path = _config["attack"]["target_model"]["model_name_or_path"]
+    if isinstance(model_name_or_path, list):
+        target_model_id = "---".join(model_name_or_path).replace("/", "--")[2:]
+    else:
+        target_model_id = model_name_or_path.replace("/", "--")
+
+    out_dir = os.path.join(_config["evaluation"]["out_dir"], experiment_id, target_model_id)
     os.makedirs(out_dir, exist_ok=True)
     file_path = os.path.join(out_dir, f"traces_{run_id}")
 
