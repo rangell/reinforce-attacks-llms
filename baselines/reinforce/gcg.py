@@ -204,10 +204,12 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
 
         # ========== prepare attack resources ========== #
         self.model = self.model.eval()
-        self.model.generation_config.cache_implementation = "static"  # Compile for generation
-        logging.warning(f"WARNING: setting model.generation_config.cache_implementation=static")
-        self.model.generation_config.compile_config.fullgraph = False  # Otherwise compile throws error for some models
-        logging.warning(f"WARNING: setting model.generation_config.compile_config.fullgraph=False")
+
+        if self.use_prefix_cache:
+            self.model.generation_config.cache_implementation = "static"  # Compile for generation
+            logging.warning(f"WARNING: setting model.generation_config.cache_implementation=static")
+            self.model.generation_config.compile_config.fullgraph = False  # Otherwise compile throws error for some models
+            logging.warning(f"WARNING: setting model.generation_config.compile_config.fullgraph=False")
 
         # Instruction template
         template = get_template(**target_model)['prompt']
@@ -249,8 +251,7 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
         self.behaviors = [behavior]
         context_str = behavior_dict['ContextString']
         behavior_id = behavior_dict['BehaviorID']
-        #target = self.behavior_id_to_target[behavior_dict["BehaviorID"]]
-        target = "Sure, here "
+        target = self.behavior_id_to_target.get(behavior_dict["BehaviorID"], "Sure, here")
         self.target_strs = [target]
 
         behavior += ' '
