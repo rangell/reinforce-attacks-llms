@@ -680,13 +680,17 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
 
             target_ids_batch = target_ids_batch.repeat(embeds_bs, 1)
 
-            if self.model._supports_num_logits_to_keep():  # to save some memory
-                num_logits_to_keep = target_ids_batch.shape[1] + 1
-                logits = self.forward(input_embeds_batch, num_logits_to_keep=num_logits_to_keep)
-                logits = logits[..., :-1, :].contiguous()
-            else:
-                length_until_target = input_embeds_batch.shape[1] - target_ids_batch.shape[1]
-                logits = self.forward(input_embeds_batch)[..., length_until_target-1:-1, :].contiguous()
+            #if self.model._supports_num_logits_to_keep():  # to save some memory
+            #if self.model._supports_logits_to_keep():  # to save some memory
+            #    num_logits_to_keep = target_ids_batch.shape[1] + 1
+            #    logits = self.forward(input_embeds_batch, num_logits_to_keep=num_logits_to_keep)
+            #    logits = logits[..., :-1, :].contiguous()
+            ##else:
+            #    length_until_target = input_embeds_batch.shape[1] - target_ids_batch.shape[1]
+            #    logits = self.forward(input_embeds_batch)[..., length_until_target-1:-1, :].contiguous()
+            length_until_target = input_embeds_batch.shape[1] - target_ids_batch.shape[1]
+            logits = self.forward(input_embeds_batch)[..., length_until_target-1:-1, :].contiguous()
+
             ce_loss = self.target_loss(logits.transpose(1, 2), target_ids_batch).to(torch.float32)
             ce_loss = ce_loss.reshape(-1, num_gens, ce_loss.shape[-1])
             ce_weights = self.target_weights(

@@ -292,6 +292,8 @@ def load_model_and_tokenizer(
     return_fschat_conv=False,
     **model_kwargs
 ):  
+
+    #token = os.getenv("HF_TOKEN")
     if token:
         hf_login(token=token)
 
