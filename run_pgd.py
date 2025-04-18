@@ -44,7 +44,8 @@ def default_config():
     attack = dict(
         target_model=dict(
             model_name_or_path="google/gemma-2b-it",
-            chat_template="gemma",
+            #chat_template="gemma",
+            chat_template=None,
             dtype="bfloat16",
             num_gpus=1,
         ),
@@ -180,7 +181,7 @@ def run(_config):
     os.makedirs(out_dir, exist_ok=True)
     file_path = os.path.join(out_dir, f"traces_{run_id}")
 
-    traces = dict(logs=logs, test_cases=test_cases, eval_test_case_scores=eval_test_case_scores,
+    traces = dict(logs=logs, data=data, test_cases=test_cases, eval_test_case_scores=eval_test_case_scores,
                   test_case_scores=test_case_scores)
 
     np.savez_compressed(file_path, **traces)
