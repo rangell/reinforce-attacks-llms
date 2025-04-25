@@ -76,7 +76,7 @@ def default_config():
         early_stopping_key='agg_reinforce_loss',
         gen_topk=256,
         gen_max_len=128,
-        gen_temperatures=[0, 0.7],
+        gen_temperatures=[0, 0.5, 0.7],
         gen_additional_judge_lengths=(20, 40, 80),
         gen_in_parallel_over_temps=False,
         bsln_temperature_complete=0,
@@ -184,6 +184,6 @@ def run(_config):
     os.makedirs(out_dir, exist_ok=True)
     file_path = os.path.join(out_dir, f"traces_{run_id}")
 
-    traces = dict(logs=logs, test_case=test_case, test_case_score=test_case_score, results=results)
+    traces = dict(logs=logs, data=data, test_case=test_case, test_case_score=test_case_score, results=results)
 
     np.savez_compressed(file_path, **traces)

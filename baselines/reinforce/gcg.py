@@ -251,7 +251,8 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
         self.behaviors = [behavior]
         context_str = behavior_dict['ContextString']
         behavior_id = behavior_dict['BehaviorID']
-        target = self.behavior_id_to_target.get(behavior_dict["BehaviorID"], "Sure, here")
+        #target = self.behavior_id_to_target.get(behavior_dict["BehaviorID"], "Sure, here")
+        target = self.behavior_id_to_target.get(behavior_dict["BehaviorID"], "Certainly!")
         self.target_strs = [target]
 
         behavior += ' '
@@ -336,6 +337,10 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
                     step_idx=i, input_embeds_wo_target=input_embeds_wo_target,
                     input_ids=input_ids, target_ids=target_ids)
                 token_grad = torch.autograd.grad(outputs=[loss], inputs=[optim_ids_onehot])[0]
+
+                # For early stopping
+                forward_rewards = [forward_loss_dict["forward_rewards"][i].item() for i, g in enumerate(generations) if not isinstance(g.id_, str)]
+                logging.info(f"forward rewards: {[(g.id_, forward_loss_dict["forward_rewards"][i].item()) for i, g in enumerate(generations) if not isinstance(g.id_, str)]}")
 
                 # ========== logic that is conditional on current rewards/metrics ========== #
                 greedy_pos = torch.where(torch.tensor([g.id_ == 0 for g in generations]))[0]
@@ -519,6 +524,10 @@ class REINFORCE_GCG(SingleBehaviorRedTeamingMethod):
 
             if self.limit_time_h is not None and (time.time() - attack_start_time) / 3_600 > self.limit_time_h:
                 logging.info(f'Limit time reached at step {i}')
+                break
+
+            # (rangell): Hacky forward reward early stopping
+            if all([r >= 0.5 r in forward_rewards]):
                 break
 
         logs = {'final_loss': optim_loss, 'all_losses': all_losses, 'all_test_cases': all_test_cases,

@@ -136,7 +136,8 @@ class PGD(RedTeamingMethod):
 
         behavior_strs = [b['Behavior'] for b in behavior_dicts]
         context_strs = [b['ContextString'] for b in behavior_dicts]
-        target_strs = [self.behavior_id_to_target.get(b['BehaviorID'], "Sure, here") for b in behavior_dicts]
+        #target_strs = [self.behavior_id_to_target.get(b['BehaviorID'], "Sure, here") for b in behavior_dicts]
+        target_strs = [self.behavior_id_to_target.get(b['BehaviorID'], "Certainly!") for b in behavior_dicts]
 
         test_cases, _, logs_merged, _ = self.pgd.run(
             behavior_strs=behavior_strs, context_strs=context_strs, target_strs=target_strs, verbose=verbose)
